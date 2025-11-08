@@ -2,36 +2,17 @@ package user
 
 import (
 	"time"
-
 	"gorm.io/gorm"
 )
 
-
-type UserRole string 
-
-type UserStatus string 
-
-
-
-const (
-	 RoleAdmin UserRole = "admin"
-	 RoleStudent UserRole = "student"
-	 RoleSupervisor UserRole = "supervisor"
-)
-
-const (
-    StatusPending  UserStatus = "pending" 
-    StatusActive   UserStatus = "active"  
-    StatusRejected UserStatus = "rejected" 
-)
 
 
 type User struct {
 	 ID uint `json:"id" gorm:"primaryKey"`
 	 Email string `json:"email" gorm:"uniqueIndex;not null"`
 	 Password string `json:"-" gorm:"not null"`
-	 Role UserRole `json:"user_role"`
-	 Status UserStatus `json:"user_status"`
+	 Role string `json:"role" gorm:"column:role"`
+	 Status string `json:"status" gorm:"column:status"`
 	 CreatedAt time.Time `json:"created_at"`
 	 UpdatedAt time.Time `json:"updated_at"`
 	 DeletedAt gorm.DeletedAt `json:"-"`
@@ -49,7 +30,6 @@ type Student struct {
     LastName           string    `json:"last_name" gorm:"not null"`
 	Image              string    `json:"image"`
     Department         string    `json:"department" gorm:"not null"`
-    StudentID          string    `json:"student_id" gorm:"uniqueIndex;not null"`          // Roll
     Session            string    `json:"session" gorm:"not null"`
     RegistrationNumber string    `json:"registration_number" gorm:"uniqueIndex;not null"` // Registration
     Batch              string    `json:"batch" gorm:"not null"`
@@ -57,7 +37,7 @@ type Student struct {
     UpdatedAt          time.Time `json:"updated_at"`
 
     // Relationship
-    User User `json:"-" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+    User *User `json:"-" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }
 
 type Supervisor struct {
@@ -73,5 +53,5 @@ type Supervisor struct {
     UpdatedAt    time.Time `json:"updated_at"`
 
     // Relationship
-    User User `json:"-" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+    User *User `json:"-" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }
