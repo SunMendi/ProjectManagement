@@ -122,3 +122,84 @@ type TeamMember struct {
 type CancelRequestResponse struct {
     Message string `json:"message"`
 }
+
+
+// ============================================
+// STUDENT: Send Request to Supervisor
+// ============================================
+
+type SendSupervisorRequestRequest struct {
+    SupervisorID uint   `json:"supervisor_id" binding:"required"`
+    ProjectTitle string `json:"project_title" binding:"required,min=10"`
+    ProjectInfo  string `json:"project_info" binding:"required,min=20"`
+}
+
+type SendSupervisorRequestResponse struct {
+    Message string `json:"message"`
+}
+
+// ============================================
+// STUDENT: Get My Team's Supervisor Requests
+// ============================================
+
+type MySupervisorRequestItem struct {
+    ID           uint      `json:"id"`
+    Supervisor   struct {
+        ID          uint   `json:"id"`
+        Name        string `json:"name"`
+        Designation string `json:"designation"`
+        Department  string `json:"department"`
+    } `json:"supervisor"`
+    ProjectTitle string    `json:"project_title"`
+    Status       string    `json:"status"`
+    RejectReason string    `json:"reject_reason,omitempty"`
+    CreatedAt    time.Time `json:"created_at"`
+}
+
+type GetMySupervisorRequestsResponse struct {
+    Total    int                       `json:"total"`
+    Requests []MySupervisorRequestItem `json:"requests"`
+}
+
+// ============================================
+// SUPERVISOR: Get Pending Requests
+// ============================================
+
+type PendingSupervisorRequestItem struct {
+    ID          uint      `json:"id"`
+    TeamName    string    `json:"team_name"`
+    Members     []struct {
+        Name               string `json:"name"`
+        RegistrationNumber string `json:"registration_number"`
+    } `json:"members"`
+    Department   string    `json:"department"`
+    Session      string    `json:"session"`
+    ProjectTitle string    `json:"project_title"`
+    ProjectInfo  string    `json:"project_info"`
+    CreatedAt    time.Time `json:"created_at"`
+}
+
+type GetPendingSupervisorRequestsResponse struct {
+    Total    int                            `json:"total"`
+    Requests []PendingSupervisorRequestItem `json:"requests"`
+}
+
+// ============================================
+// SUPERVISOR: Accept Request
+// ============================================
+
+type AcceptSupervisorRequestResponse struct {
+    Message string `json:"message"`
+}
+
+// ============================================
+// SUPERVISOR: Reject Request
+// ============================================
+
+type RejectSupervisorRequestRequest struct {
+    Reason string `json:"reason" binding:"required,min=10"`
+}
+
+type RejectSupervisorRequestResponse struct {
+    Message string `json:"message"`
+}

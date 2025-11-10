@@ -11,7 +11,8 @@ type Team struct {
     Session     string    `json:"session" gorm:"not null"`
     Status      string    `json:"status" gorm:"not null;default:'pending_supervisor'"` // pending_supervisor, active, completed
     Student1ID  uint      `json:"student1_id" gorm:"not null;uniqueIndex"`              // One student = one team
-    Student2ID  uint      `json:"student2_id" gorm:"not null;uniqueIndex"`              // One student = one team
+    Student2ID  uint      `json:"student2_id" gorm:"not null;uniqueIndex"`  
+	SupervisorID *uint     `json:"supervisor_id" gorm:"index"` 
     CreatedAt   time.Time `json:"created_at"`
     UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -26,4 +27,18 @@ type TeamRequest struct {
     Status        string    `json:"status" gorm:"not null;default:'pending'"` // pending, accepted, rejected
     CreatedAt     time.Time `json:"created_at"`
     UpdatedAt     time.Time `json:"updated_at"`
+}
+
+
+
+type SupervisorRequest struct {
+    ID           uint      `json:"id" gorm:"primaryKey"`
+    TeamID       uint      `json:"team_id" gorm:"not null;index"` // ✅ Contains both students already!
+    SupervisorID uint      `json:"supervisor_id" gorm:"not null;index"`
+    ProjectTitle string    `json:"project_title" gorm:"not null"`
+    ProjectInfo  string    `json:"project_info" gorm:"type:text"`
+    Status       string    `json:"status" gorm:"not null;default:'pending'"` // pending, accepted, rejected
+    RejectReason string    `json:"reject_reason" gorm:"type:text"`
+    CreatedAt    time.Time `json:"created_at"`
+    UpdatedAt    time.Time `json:"updated_at"`
 }

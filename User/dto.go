@@ -39,8 +39,8 @@ type UpdateStudentProfileRequest struct {
 }
 
 type GetStudentsByFilterRequest struct {
-	 Department string `json:"department" binding:"required"`
-	 Session string `json:"session" binding:"required"`
+    Department string `form:"department" binding:"required"` // ✅ Changed from json to form
+    Session    string `form:"session" binding:"required"`    // ✅ Changed from json to form
 }
 
 type StudentListItem struct {

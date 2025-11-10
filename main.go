@@ -2,9 +2,13 @@ package main
 
 import (
 	"ProjectManagement/User"
+	"ProjectManagement/chat"
 	"ProjectManagement/database"
+	"ProjectManagement/task"
 	"ProjectManagement/team"
+	"ProjectManagement/upload" 
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -13,6 +17,11 @@ import (
 
 
 func main () {
+	   if _, err := os.Stat("uploads"); os.IsNotExist(err) {
+        os.Mkdir("uploads", 0755)
+    }
+
+
 	 db, err := database.ConnectDB()
 	 if err!= nil {
 		 log.Panic("Database Initialization Issue")
@@ -31,6 +40,9 @@ func main () {
 
 	 user.RegisterRoutes(router, db)
 	 team.RegisterRoutes(router, db)
+	 task.RegisterRoutes(router, db)
+	 chat.RegisterRoutes(router, db)
+	 upload.RegisterRoutes(router)
 
 	 router.Run(":8081")
 }

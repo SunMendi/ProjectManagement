@@ -534,3 +534,358 @@ func (s *teamService) GetMyTeam(studentID uint) (*GetMyTeamResponse, error) {
         },
     }, nil
 }
+
+// ============================================
+// Supervisor Request Service Interface
+// ============================================
+
+type SupervisorRequestService interface {
+    // Student operations
+    SendSupervisorRequest(studentID uint, req SendSupervisorRequestRequest) (*SendSupervisorRequestResponse, error)
+    GetMySupervisorRequests(studentID uint) (*GetMySupervisorRequestsResponse, error)
+    
+    // Supervisor operations
+    GetPendingRequests(supervisorID uint) (*GetPendingSupervisorRequestsResponse, error)
+    AcceptRequest(requestID, supervisorID uint) (*AcceptSupervisorRequestResponse, error)
+    RejectRequest(requestID, supervisorID uint, req RejectSupervisorRequestRequest) (*RejectSupervisorRequestResponse, error)
+}
+
+// ============================================
+// Service Implementation
+// ============================================
+
+type supervisorRequestService struct {
+    db                 *gorm.DB
+    teamRepo           TeamRepository
+    supervisorReqRepo  SupervisorRequestRepository
+}
+
+func NewSupervisorRequestService(
+    db *gorm.DB,
+    teamRepo TeamRepository,
+    supervisorReqRepo SupervisorRequestRepository,
+) SupervisorRequestService {
+    return &supervisorRequestService{
+        db:                db,
+        teamRepo:          teamRepo,
+        supervisorReqRepo: supervisorReqRepo,
+    }
+}
+
+// ============================================
+// STUDENT: Send Supervisor Request
+// ============================================
+
+func (s *supervisorRequestService) SendSupervisorRequest(studentID uint, req SendSupervisorRequestRequest) (*SendSupervisorRequestResponse, error) {
+    // ✅ 1. Check: Student has a team
+    team, err := s.teamRepo.FindByStudentID(studentID)
+    if err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return nil, errors.New("you don't have a team yet. Please form a team first")
+        }
+        return nil, err
+    }
+
+    // ✅ 2. Check: Team doesn't already have a supervisor
+    if team.SupervisorID != nil {
+        return nil, errors.New("your team already has a supervisor")
+    }
+
+    // ✅ 3. Check: No pending request exists
+    hasPending, err := s.supervisorReqRepo.HasPendingRequest(team.ID)
+    if err != nil {
+        return nil, err
+    }
+    if hasPending {
+        return nil, errors.New("you already have a pending supervisor request")
+    }
+
+    // ✅ 4. Check: Supervisor exists - FIXED!
+    var supervisor struct {
+        ID   uint
+        Name string
+    }
+    err = s.db.Table("supervisors").
+        Select("supervisors.id, supervisors.name").
+        Where("supervisors.id = ?", req.SupervisorID).
+        Scan(&supervisor).Error
+    
+    if err != nil || supervisor.ID == 0 {
+        return nil, errors.New("supervisor not found")
+    }
+
+    // ✅ 5. Create supervisor request
+    request := &SupervisorRequest{
+        TeamID:       team.ID,
+        SupervisorID: req.SupervisorID,
+        ProjectTitle: req.ProjectTitle,
+        ProjectInfo:  req.ProjectInfo,
+        Status:       "pending",
+        CreatedAt:    time.Now(),
+        UpdatedAt:    time.Now(),
+    }
+
+    err = s.supervisorReqRepo.Create(request)
+    if err != nil {
+        return nil, err
+    }
+
+    return &SendSupervisorRequestResponse{
+        Message: "Request sent to " + supervisor.Name + " successfully",
+    }, nil
+}
+
+// ============================================
+// STUDENT: Get My Team's Supervisor Requests
+// ============================================
+
+func (s *supervisorRequestService) GetMySupervisorRequests(studentID uint) (*GetMySupervisorRequestsResponse, error) {
+    // ✅ 1. Get student's team
+    team, err := s.teamRepo.FindByStudentID(studentID)
+    if err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return &GetMySupervisorRequestsResponse{
+                Total:    0,
+                Requests: []MySupervisorRequestItem{},
+            }, nil
+        }
+        return nil, err
+    }
+
+    // ✅ 2. Get all requests for this team
+    requests, err := s.supervisorReqRepo.FindByTeamID(team.ID)
+    if err != nil {
+        return nil, err
+    }
+
+    // ✅ 3. Build response
+    var items []MySupervisorRequestItem
+    for _, req := range requests {
+        // Get supervisor details
+        var supervisor struct {
+            ID          uint
+            Name        string
+            Designation string
+            Department  string
+        }
+        err = s.db.Table("supervisors").
+    Select("supervisors.id, supervisors.name, supervisors.designation, supervisors.department").
+    Where("supervisors.id = ?", req.SupervisorID).
+    Scan(&supervisor).Error
+if err != nil {
+    continue
+}
+
+        item := MySupervisorRequestItem{
+            ID: req.ID,
+            Supervisor: struct {
+                ID          uint   `json:"id"`
+                Name        string `json:"name"`
+                Designation string `json:"designation"`
+                Department  string `json:"department"`
+            }{
+                ID:          supervisor.ID,
+                Name:        supervisor.Name,
+                Designation: supervisor.Designation,
+                Department:  supervisor.Department,
+            },
+            ProjectTitle: req.ProjectTitle,
+            Status:       req.Status,
+            RejectReason: req.RejectReason,
+            CreatedAt:    req.CreatedAt,
+        }
+        items = append(items, item)
+    }
+
+    return &GetMySupervisorRequestsResponse{
+        Total:    len(items),
+        Requests: items,
+    }, nil
+}
+
+// ============================================
+// SUPERVISOR: Get Pending Requests
+// ============================================
+
+// ============================================
+// SUPERVISOR: Get Pending Requests
+// ============================================
+
+// ============================================
+// SUPERVISOR: Get Pending Requests
+// ============================================
+
+func (s *supervisorRequestService) GetPendingRequests(supervisorID uint) (*GetPendingSupervisorRequestsResponse, error) {
+    // ✅ 1. Get pending requests
+    requests, err := s.supervisorReqRepo.FindPendingBySupervisorID(supervisorID)
+    if err != nil {
+        return nil, err
+    }
+
+    // ✅ 2. Build response with team and student details
+    var items []PendingSupervisorRequestItem
+    for _, req := range requests {
+        // Get team details
+        team, err := s.teamRepo.FindByID(req.TeamID)
+        if err != nil {
+            continue
+        }
+
+        // Get student1 details - FIXED!
+        var student1 struct {
+            Name               string
+            RegistrationNumber string
+        }
+        err = s.db.Table("students").
+            Select("CONCAT(students.first_name, ' ', students.last_name) as name, students.registration_number").
+            Where("students.id = ?", team.Student1ID).
+            Scan(&student1).Error
+        if err != nil {
+            continue
+        }
+
+        // Get student2 details - FIXED!
+        var student2 struct {
+            Name               string
+            RegistrationNumber string
+        }
+        err = s.db.Table("students").
+            Select("CONCAT(students.first_name, ' ', students.last_name) as name, students.registration_number").
+            Where("students.id = ?", team.Student2ID).
+            Scan(&student2).Error
+        if err != nil {
+            continue
+        }
+
+        item := PendingSupervisorRequestItem{
+            ID:       req.ID,
+            TeamName: team.Name,
+            Members: []struct {
+                Name               string `json:"name"`
+                RegistrationNumber string `json:"registration_number"`
+            }{
+                {Name: student1.Name, RegistrationNumber: student1.RegistrationNumber},
+                {Name: student2.Name, RegistrationNumber: student2.RegistrationNumber},
+            },
+            Department:   team.Department,
+            Session:      team.Session,
+            ProjectTitle: req.ProjectTitle,
+            ProjectInfo:  req.ProjectInfo,
+            CreatedAt:    req.CreatedAt,
+        }
+        items = append(items, item)
+    }
+
+    return &GetPendingSupervisorRequestsResponse{
+        Total:    len(items),
+        Requests: items,
+    }, nil
+}
+
+// ============================================
+// SUPERVISOR: Accept Request
+// ============================================
+
+func (s *supervisorRequestService) AcceptRequest(requestID, supervisorID uint) (*AcceptSupervisorRequestResponse, error) {
+    // ✅ 1. Get the request
+    request, err := s.supervisorReqRepo.FindByID(requestID)
+    if err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return nil, errors.New("request not found")
+        }
+        return nil, err
+    }
+
+    // ✅ 2. Validate: Request is for this supervisor
+    if request.SupervisorID != supervisorID {
+        return nil, errors.New("unauthorized: this request is not for you")
+    }
+
+    // ✅ 3. Validate: Request is pending
+    if request.Status != "pending" {
+        return nil, errors.New("request is not pending")
+    }
+
+    // ✅ 4. Get team
+    team, err := s.teamRepo.FindByID(request.TeamID)
+    if err != nil {
+        return nil, errors.New("team not found")
+    }
+
+    // ✅ 5. Check: Team doesn't already have supervisor
+    if team.SupervisorID != nil {
+        return nil, errors.New("this team already has a supervisor")
+    }
+
+    // ✅ 6. Use transaction
+    tx := s.db.Begin()
+    defer func() {
+        if r := recover(); r != nil {
+            tx.Rollback()
+        }
+    }()
+
+    // ✅ 7. Update request status
+    err = s.supervisorReqRepo.UpdateStatus(requestID, "accepted", "")
+    if err != nil {
+        tx.Rollback()
+        return nil, err
+    }
+
+    // ✅ 8. Assign supervisor to team
+    err = s.teamRepo.AssignSupervisor(team.ID, supervisorID)
+    if err != nil {
+        tx.Rollback()
+        return nil, err
+    }
+
+    // ✅ 9. Reject all other pending requests for this team
+    var otherRequests []SupervisorRequest
+    tx.Where("team_id = ? AND status = ? AND id != ?", team.ID, "pending", requestID).
+        Find(&otherRequests)
+    
+    for _, req := range otherRequests {
+        s.supervisorReqRepo.UpdateStatus(req.ID, "rejected", "Team already assigned to another supervisor")
+    }
+
+    tx.Commit()
+
+    return &AcceptSupervisorRequestResponse{
+        Message: "Team assigned successfully",
+    }, nil
+}
+
+// ============================================
+// SUPERVISOR: Reject Request
+// ============================================
+
+func (s *supervisorRequestService) RejectRequest(requestID, supervisorID uint, req RejectSupervisorRequestRequest) (*RejectSupervisorRequestResponse, error) {
+    // ✅ 1. Get the request
+    request, err := s.supervisorReqRepo.FindByID(requestID)
+    if err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return nil, errors.New("request not found")
+        }
+        return nil, err
+    }
+
+    // ✅ 2. Validate: Request is for this supervisor
+    if request.SupervisorID != supervisorID {
+        return nil, errors.New("unauthorized: this request is not for you")
+    }
+
+    // ✅ 3. Validate: Request is pending
+    if request.Status != "pending" {
+        return nil, errors.New("request is not pending")
+    }
+
+    // ✅ 4. Update status with rejection reason
+    err = s.supervisorReqRepo.UpdateStatus(requestID, "rejected", req.Reason)
+    if err != nil {
+        return nil, err
+    }
+
+    return &RejectSupervisorRequestResponse{
+        Message: "Request rejected",
+    }, nil
+}
