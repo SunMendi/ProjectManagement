@@ -20,7 +20,13 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB) {
     supervisorService := NewSupervisorService(db, userRepo, supervisorRepo)
     supervisorHandler := NewSupervisorHandler(supervisorService)
 
+    adminService := NewAdminService(db)
+    adminHandler := NewAdminHandler(adminService)
+
     // Public routes (no auth required)
+
+    router.GET("/admin/pending-users", adminHandler.GetPendingUsers)
+    router.POST("/admin/users/:user_id/approve", adminHandler.ApproveUser)
     router.POST("/api/auth/register/student", studentHandler.RegisterStudent)
     router.POST("/api/auth/login/student", studentHandler.Login)
     router.POST("/api/auth/register/supervisor", supervisorHandler.RegisterSupervisor)

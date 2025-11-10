@@ -206,3 +206,44 @@ func (h *SupervisorHandler) Login(c *gin.Context) {
 
     c.JSON(http.StatusOK, res)
 }
+
+// ============================================
+// ADMIN HANDLER (Super Simple)
+// ============================================
+
+type AdminHandler struct {
+    service AdminService
+}
+
+func NewAdminHandler(service AdminService) *AdminHandler {
+    return &AdminHandler{service: service}
+}
+
+// GetPendingUsers
+func (h *AdminHandler) GetPendingUsers(c *gin.Context) {
+    result, err := h.service.GetPendingUsers()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(http.StatusOK, result)
+}
+
+// ApproveUser
+func (h *AdminHandler) ApproveUser(c *gin.Context) {
+    userIDParam := c.Param("user_id")
+    userID, err := strconv.ParseUint(userIDParam, 10, 32)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+        return
+    }
+    
+    err = h.service.ApproveUser(uint(userID))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(http.StatusOK, gin.H{"message": "Student approved successfully"})
+}

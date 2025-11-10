@@ -29,6 +29,7 @@ type GetStudentResponse struct {
     Batch              string `json:"batch"`
     Status             string `json:"status"`
     Role               string `json:"role"`
+    Image              string `json:"image"`
 }
 
 type UpdateStudentProfileRequest struct {

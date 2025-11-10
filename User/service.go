@@ -130,6 +130,7 @@ func (s *studentService) GetStudentByID(id uint) (*GetStudentResponse, error) {
         Batch:              student.Batch,
 		Status:             user.Status,
         Role:               user.Role,
+        Image:              student.Image,
     }, nil
 }
 
@@ -491,4 +492,58 @@ func (s *supervisorService) Login(req LoginRequest) (*SupervisorLoginResponse, e
         Status:       user.Status,
         Supervisor:   supervisorData,
     }, nil
+}
+
+
+// ============================================
+// ADMIN SERVICE (Super Simple)
+// ============================================
+
+type AdminService interface {
+    GetPendingUsers() (map[string]interface{}, error)
+    ApproveUser(userID uint) error
+}
+
+type adminService struct {
+    db *gorm.DB
+}
+
+func NewAdminService(db *gorm.DB) AdminService {
+    return &adminService{db: db}
+}
+
+// GetPendingUsers - Get all pending students only
+func (s *adminService) GetPendingUsers() (map[string]interface{}, error) {
+    var users []User
+    
+    // Only get pending STUDENTS (supervisor is auto-approved by admin)
+    err := s.db.Where("status = ? AND role = ?", "pending", "student").
+        Order("created_at DESC").
+        Find(&users).Error
+    
+    if err != nil {
+        return nil, err
+    }
+    
+    return map[string]interface{}{
+        "total": len(users),
+        "users": users,
+    }, nil
+}
+
+// ApproveUser - Change status from pending to active
+func (s *adminService) ApproveUser(userID uint) error {
+    result := s.db.Model(&User{}).
+        Where("id = ? AND status = ? AND role = ?", userID, "pending", "student").
+        Update("status", "active")
+    
+    if result.Error != nil {
+        return result.Error
+    }
+    
+    if result.RowsAffected == 0 {
+        return errors.New("user not found or already approved")
+    }
+    
+    return nil
 }
