@@ -130,8 +130,8 @@ type CancelRequestResponse struct {
 
 type SendSupervisorRequestRequest struct {
     SupervisorID uint   `json:"supervisor_id" binding:"required"`
-    ProjectTitle string `json:"project_title" binding:"required,min=10"`
-    ProjectInfo  string `json:"project_info" binding:"required,min=20"`
+    ProjectTitle string `json:"project_title" binding:"required,min=5"`
+    ProjectInfo  string `json:"project_info" binding:"required,min=10"`
 }
 
 type SendSupervisorRequestResponse struct {
