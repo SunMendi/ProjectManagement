@@ -6,15 +6,10 @@ import (
 )
 
 func RegisterRoutes(router *gin.Engine) {
-    handler := NewUploadHandler()
-
-    // Protected upload endpoint (requires login)
+    // Protected upload endpoint
     protected := router.Group("/api")
     protected.Use(middleware.AuthMiddleware())
     {
-        protected.POST("/upload", handler.UploadFile)
+        protected.POST("/upload", UploadFile)
     }
-
-    // Serve uploaded files publicly
-    router.Static("/uploads", "./uploads")
 }

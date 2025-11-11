@@ -51,11 +51,14 @@ type TaskItem struct {
     
     // Show submissions
     Submissions []struct {
+        ID             uint      `json:"id"`
         StudentName    string    `json:"student_name"`
         SubmissionType string    `json:"submission_type"`
         FileURL        string    `json:"file_url,omitempty"`
         LinkURL        string    `json:"link_url,omitempty"`
         TextContent    string    `json:"text_content,omitempty"`
+        Status         string    `json:"status"`          // ✅ ADD
+        Feedback       string    `json:"feedback,omitempty"`
         SubmittedAt    time.Time `json:"submitted_at"`
     } `json:"submissions"`
 }
@@ -77,5 +80,20 @@ type SubmitTaskRequest struct {
 }
 
 type SubmitTaskResponse struct {
+    Message string `json:"message"`
+}
+
+// ...existing code...
+
+// ============================================
+// SUPERVISOR: Review Submission
+// ============================================
+
+type ReviewSubmissionRequest struct {
+    Action   string `json:"action" binding:"required,oneof=approve reject"`
+    Feedback string `json:"feedback"`
+}
+
+type ReviewSubmissionResponse struct {
     Message string `json:"message"`
 }

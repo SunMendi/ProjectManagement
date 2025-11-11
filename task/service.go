@@ -17,6 +17,8 @@ type TaskService interface {
     CreateTask(supervisorID, teamID uint, req CreateTaskRequest) (*CreateTaskResponse, error)
     GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse, error)
     DeleteTask(supervisorID, taskID uint) error
+    ReviewSubmission(supervisorID, submissionID uint, req ReviewSubmissionRequest) (*ReviewSubmissionResponse, error) // ✅ ADD
+
     
     // Student operations
     GetMyTeamTasks(studentID uint) (*GetTasksResponse, error)
@@ -173,6 +175,10 @@ func (s *taskService) CreateTask(supervisorID, teamID uint, req CreateTaskReques
 // SUPERVISOR: Get Team Tasks
 // ============================================
 
+// ============================================
+// SUPERVISOR: Get Team Tasks
+// ============================================
+
 func (s *taskService) GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse, error) {
     // Verify team belongs to this supervisor
     var team struct {
@@ -205,36 +211,46 @@ func (s *taskService) GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse
         // Get submissions for this task
         submissions, _ := s.submissionRepo.FindByTaskID(task.ID)
         
+        // Define submission details struct
         var submissionDetails []struct {
+            ID             uint      `json:"id"`
             StudentName    string    `json:"student_name"`
             SubmissionType string    `json:"submission_type"`
             FileURL        string    `json:"file_url,omitempty"`
             LinkURL        string    `json:"link_url,omitempty"`
             TextContent    string    `json:"text_content,omitempty"`
+            Status         string    `json:"status"`
+            Feedback       string    `json:"feedback,omitempty"`
             SubmittedAt    time.Time `json:"submitted_at"`
         }
         
+        // Populate submission details
         for _, sub := range submissions {
-            // Get student name
             var studentName string
             s.db.Table("students").
                 Select("CONCAT(first_name, ' ', last_name)").
                 Where("id = ?", sub.StudentID).
                 Scan(&studentName)
-            
+
             submissionDetails = append(submissionDetails, struct {
+                ID             uint      `json:"id"`
                 StudentName    string    `json:"student_name"`
                 SubmissionType string    `json:"submission_type"`
                 FileURL        string    `json:"file_url,omitempty"`
                 LinkURL        string    `json:"link_url,omitempty"`
                 TextContent    string    `json:"text_content,omitempty"`
+                Status         string    `json:"status"`
+                Feedback       string    `json:"feedback,omitempty"`
                 SubmittedAt    time.Time `json:"submitted_at"`
             }{
+                ID:             sub.ID,
                 StudentName:    studentName,
                 SubmissionType: sub.SubmissionType,
                 FileURL:        sub.FileURL,
                 LinkURL:        sub.LinkURL,
                 TextContent:    sub.TextContent,
+                Status:         sub.Status,
+                Feedback:       sub.Feedback,
                 SubmittedAt:    sub.SubmittedAt,
             })
         }
@@ -284,6 +300,10 @@ func (s *taskService) DeleteTask(supervisorID, taskID uint) error {
 // STUDENT: Get My Team Tasks
 // ============================================
 
+// ============================================
+// STUDENT: Get My Team Tasks
+// ============================================
+
 func (s *taskService) GetMyTeamTasks(studentID uint) (*GetTasksResponse, error) {
     // Get student's team
     var team struct {
@@ -314,12 +334,16 @@ func (s *taskService) GetMyTeamTasks(studentID uint) (*GetTasksResponse, error) 
         // Get submissions for this task
         submissions, _ := s.submissionRepo.FindByTaskID(task.ID)
         
+        // ✅ FIX: Add missing fields to match TaskItem DTO
         var submissionDetails []struct {
+            ID             uint      `json:"id"`              // ✅ ADD
             StudentName    string    `json:"student_name"`
             SubmissionType string    `json:"submission_type"`
             FileURL        string    `json:"file_url,omitempty"`
             LinkURL        string    `json:"link_url,omitempty"`
             TextContent    string    `json:"text_content,omitempty"`
+            Status         string    `json:"status"`          // ✅ ADD
+            Feedback       string    `json:"feedback,omitempty"` // ✅ ADD
             SubmittedAt    time.Time `json:"submitted_at"`
         }
         
@@ -331,19 +355,26 @@ func (s *taskService) GetMyTeamTasks(studentID uint) (*GetTasksResponse, error) 
                 Where("id = ?", sub.StudentID).
                 Scan(&studentName)
             
+            // ✅ FIX: Include all fields
             submissionDetails = append(submissionDetails, struct {
+                ID             uint      `json:"id"`
                 StudentName    string    `json:"student_name"`
                 SubmissionType string    `json:"submission_type"`
                 FileURL        string    `json:"file_url,omitempty"`
                 LinkURL        string    `json:"link_url,omitempty"`
                 TextContent    string    `json:"text_content,omitempty"`
+                Status         string    `json:"status"`
+                Feedback       string    `json:"feedback,omitempty"`
                 SubmittedAt    time.Time `json:"submitted_at"`
             }{
+                ID:             sub.ID,              // ✅ ADD
                 StudentName:    studentName,
                 SubmissionType: sub.SubmissionType,
                 FileURL:        sub.FileURL,
                 LinkURL:        sub.LinkURL,
                 TextContent:    sub.TextContent,
+                Status:         sub.Status,          // ✅ ADD
+                Feedback:       sub.Feedback,        // ✅ ADD
                 SubmittedAt:    sub.SubmittedAt,
             })
         }
@@ -366,7 +397,6 @@ func (s *taskService) GetMyTeamTasks(studentID uint) (*GetTasksResponse, error) 
         Tasks: items,
     }, nil
 }
-
 // ============================================
 // STUDENT: Submit Task
 // ============================================
@@ -435,5 +465,50 @@ func (s *taskService) SubmitTask(studentID, taskID uint, req SubmitTaskRequest) 
     
     return &SubmitTaskResponse{
         Message: "Task submitted successfully",
+    }, nil
+}
+
+
+func (s *taskService) ReviewSubmission(supervisorID, submissionID uint, req ReviewSubmissionRequest) (*ReviewSubmissionResponse, error) {
+    // Get submission
+    submission, err := s.submissionRepo.FindByID(submissionID)
+    if err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return nil, errors.New("submission not found")
+        }
+        return nil, err
+    }
+    
+    // Get task to verify supervisor
+    task, err := s.taskRepo.FindByID(submission.TaskID)
+    if err != nil {
+        return nil, errors.New("task not found")
+    }
+    
+    // Verify supervisor owns this task
+    if task.SupervisorID != supervisorID {
+        return nil, errors.New("unauthorized")
+    }
+    
+    // Update submission
+    if req.Action == "approve" {
+        submission.Status = "approved"
+    } else {
+        submission.Status = "rejected"
+    }
+    submission.Feedback = req.Feedback
+    
+    err = s.submissionRepo.Update(submission)
+    if err != nil {
+        return nil, err
+    }
+    
+    message := "Submission approved successfully"
+    if req.Action == "reject" {
+        message = "Submission rejected successfully"
+    }
+    
+    return &ReviewSubmissionResponse{
+        Message: message,
     }, nil
 }

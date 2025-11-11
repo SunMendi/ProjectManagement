@@ -197,3 +197,38 @@ func (h *TaskHandler) SubmitTask(c *gin.Context) {
 
     c.JSON(http.StatusCreated, response)
 }
+
+// ...existing code...
+
+// ============================================
+// SUPERVISOR: Review Submission
+// ============================================
+
+func (h *TaskHandler) ReviewSubmission(c *gin.Context) {
+    supervisorID, exists := c.Get("supervisor_id")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+        return
+    }
+
+    submissionIDParam := c.Param("submission_id")
+    submissionID, err := strconv.ParseUint(submissionIDParam, 10, 32)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid submission ID"})
+        return
+    }
+
+    var req ReviewSubmissionRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    response, err := h.service.ReviewSubmission(supervisorID.(uint), uint(submissionID), req)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, response)
+}

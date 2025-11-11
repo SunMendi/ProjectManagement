@@ -27,6 +27,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB) {
         protected.POST("/teams/:team_id/tasks", taskHandler.CreateTask)
         protected.GET("/teams/:team_id/tasks", taskHandler.GetTeamTasks)
         protected.DELETE("/tasks/:task_id", taskHandler.DeleteTask)
+        protected.POST("/submissions/:submission_id/review", taskHandler.ReviewSubmission)
 
         // ========== STUDENT ROUTES ==========
         protected.GET("/my-team/tasks", taskHandler.GetMyTeamTasks)

@@ -29,6 +29,8 @@ type TaskRepository interface {
 type TaskSubmissionRepository interface {
     // Submission CRUD
     Create(submission *TaskSubmission) error
+    FindByID(id uint) (*TaskSubmission, error)           // ✅ ADD
+    Update(submission *TaskSubmission) error
     FindByTaskID(taskID uint) ([]TaskSubmission, error)
     FindByStudentAndTask(studentID, taskID uint) (*TaskSubmission, error)
     StudentHasSubmitted(studentID, taskID uint) (bool, error)
@@ -127,4 +129,18 @@ func (r *taskSubmissionRepository) StudentHasSubmitted(studentID, taskID uint) (
         Where("student_id = ? AND task_id = ?", studentID, taskID).
         Count(&count).Error
     return count > 0, err
+}
+
+
+func (r *taskSubmissionRepository) FindByID(id uint) (*TaskSubmission, error) {
+    var submission TaskSubmission
+    err := r.db.Where("id = ?", id).First(&submission).Error
+    if err != nil {
+        return nil, err
+    }
+    return &submission, nil
+}
+
+func (r *taskSubmissionRepository) Update(submission *TaskSubmission) error {
+    return r.db.Save(submission).Error
 }

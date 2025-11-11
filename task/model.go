@@ -24,5 +24,7 @@ type TaskSubmission struct {
     FileURL        string    `json:"file_url"`                   // S3/local path
     LinkURL        string    `json:"link_url"`                   // External URL
     TextContent    string    `json:"text_content" gorm:"type:text"` // Text submission
+    Status         string    `json:"status" gorm:"default:'pending'"` // ✅ NEW: pending, approved, rejected
+    Feedback       string    `json:"feedback" gorm:"type:text"`
     SubmittedAt    time.Time `json:"submitted_at"`
 }

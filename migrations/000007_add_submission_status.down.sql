@@ -1,0 +1,3 @@
+ALTER TABLE task_submissions 
+DROP COLUMN IF EXISTS status,
+DROP COLUMN IF EXISTS feedback;

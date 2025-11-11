@@ -8,7 +8,6 @@ import (
 	"ProjectManagement/team"
 	"ProjectManagement/upload" 
 	"log"
-	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -17,11 +16,7 @@ import (
 
 
 func main () {
-	   if _, err := os.Stat("uploads"); os.IsNotExist(err) {
-        os.Mkdir("uploads", 0755)
-    }
-
-
+	
 	 db, err := database.ConnectDB()
 	 if err!= nil {
 		 log.Panic("Database Initialization Issue")

@@ -1,22 +1,20 @@
 package upload
 
 import (
+    "context"
     "fmt"
     "net/http"
+    "os"
     "path/filepath"
     "time"
 
+    "github.com/cloudinary/cloudinary-go/v2"
+    "github.com/cloudinary/cloudinary-go/v2/api/uploader"
     "github.com/gin-gonic/gin"
 )
 
-type UploadHandler struct{}
-
-func NewUploadHandler() *UploadHandler {
-    return &UploadHandler{}
-}
-
-// UploadFile handles file uploads
-func (h *UploadHandler) UploadFile(c *gin.Context) {
+// UploadFile handles file uploads to Cloudinary
+func UploadFile(c *gin.Context) {
     // Get file from form
     file, err := c.FormFile("file")
     if err != nil {
@@ -31,12 +29,16 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
         ".jpg":  true,
         ".jpeg": true,
         ".png":  true,
+        ".gif":  true,
         ".doc":  true,
         ".docx": true,
+        ".mp4":  true,
+        ".zip":  true,
+        ".txt":  true,
     }
 
     if !allowedExts[ext] {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Only PDF, JPG, PNG, DOC, DOCX files are allowed"})
+        c.JSON(http.StatusBadRequest, gin.H{"error": "File type not allowed"})
         return
     }
 
@@ -46,22 +48,60 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
         return
     }
 
-    // Generate unique filename with timestamp
-    timestamp := time.Now().Unix()
-    newFilename := fmt.Sprintf("%d_%s", timestamp, file.Filename)
+    // Open file
+    fileHeader, err := file.Open()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+        return
+    }
+    defer fileHeader.Close()
 
-    // Save file to uploads folder
-    savePath := filepath.Join("uploads", newFilename)
-    if err := c.SaveUploadedFile(file, savePath); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+    // Get Cloudinary credentials from environment
+    cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+    apiKey := os.Getenv("CLOUDINARY_API_KEY")
+    apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+
+    if cloudName == "" || apiKey == "" || apiSecret == "" {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary credentials not configured"})
         return
     }
 
-    // Return public URL
-    fileURL := fmt.Sprintf("http://localhost:8081/uploads/%s", newFilename)
+    // Initialize Cloudinary
+    cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize Cloudinary"})
+        return
+    }
+
+    // Determine resource type based on extension
+    resourceType := "auto"
+    if ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".zip" {
+        resourceType = "raw"
+    } else if ext == ".mp4" {
+        resourceType = "video"
+    } else {
+        resourceType = "image"
+    }
+
+    // Generate unique filename
+    timestamp := time.Now().Unix()
+    publicID := fmt.Sprintf("%d_%s", timestamp, filepath.Base(file.Filename))
+
+    // Upload to Cloudinary
+    ctx := context.Background()
+    uploadResult, err := cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
+        Folder:       "project-management",
+        ResourceType: resourceType,
+        PublicID:     publicID,
+    })
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload file: %v", err)})
+        return
+    }
 
     c.JSON(http.StatusOK, gin.H{
         "message":  "File uploaded successfully",
-        "file_url": fileURL,
+        "file_url": uploadResult.SecureURL,
     })
 }
