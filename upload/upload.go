@@ -6,6 +6,7 @@ import (
     "net/http"
     "os"
     "path/filepath"
+    "strings"
     "time"
 
     "github.com/cloudinary/cloudinary-go/v2"
@@ -22,8 +23,8 @@ func UploadFile(c *gin.Context) {
         return
     }
 
-    // Validate file extension
-    ext := filepath.Ext(file.Filename)
+    // Validate file extension (case-insensitive)
+    ext := strings.ToLower(filepath.Ext(file.Filename))
     allowedExts := map[string]bool{
         ".pdf":  true,
         ".jpg":  true,
@@ -81,18 +82,17 @@ func UploadFile(c *gin.Context) {
     var uploadResult *uploader.UploadResult
 
     if ext == ".pdf" {
-        // ✅ PDFs - upload as IMAGE type to enable inline viewing
+        // PDFs - upload as "raw" 
         uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
-            PublicID:     fmt.Sprintf("%d", timestamp),
+            PublicID:     fmt.Sprintf("%d%s", timestamp, ext), // Include extension in public ID
             Folder:       "project-management/documents",
-            ResourceType: "image",
-            Format:       "pdf",
+            ResourceType: "raw",
         })
 
     } else if ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".zip" {
-        // Other documents - use "raw" (will download)
+        // Other documents - use "raw"
         uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
-            PublicID:     fmt.Sprintf("%d", timestamp),
+            PublicID:     fmt.Sprintf("%d%s", timestamp, ext), // Include extension in public ID
             Folder:       "project-management/documents",
             ResourceType: "raw",
         })
@@ -119,8 +119,34 @@ func UploadFile(c *gin.Context) {
         return
     }
 
+    // Transform URL based on file type
+    finalURL := transformCloudinaryURL(uploadResult.SecureURL, ext)
+
     c.JSON(http.StatusOK, gin.H{
         "message":  "File uploaded successfully",
-        "file_url": uploadResult.SecureURL,
+        "file_url": finalURL,
     })
+}
+
+// transformCloudinaryURL modifies the URL to control how files are delivered
+func transformCloudinaryURL(url string, ext string) string {
+    switch ext {
+    case ".pdf":
+        // For PDFs, enable inline viewing by removing attachment flag
+        return strings.Replace(url, "/upload/", "/upload/fl_attachment:false/", 1)
+    
+    case ".doc", ".docx", ".zip":
+        // For documents that should download, ensure attachment flag is set
+        if !strings.Contains(url, "fl_attachment") {
+            return strings.Replace(url, "/upload/", "/upload/fl_attachment/", 1)
+        }
+        return url
+    
+    case ".txt":
+        // For text files, enable inline viewing
+        return strings.Replace(url, "/upload/", "/upload/fl_attachment:false/", 1)
+    
+    default:
+        return url
+    }
 }
