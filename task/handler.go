@@ -100,9 +100,10 @@ func (h *TaskHandler) GetTeamTasks(c *gin.Context) {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid team ID"})
         return
     }
+    session := c.Query("session")
 
     // Get tasks
-    response, err := h.service.GetTeamTasks(supervisorID.(uint), uint(teamID))
+    response, err := h.service.GetTeamTasks(supervisorID.(uint), uint(teamID),session)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return

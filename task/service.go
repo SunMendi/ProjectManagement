@@ -15,7 +15,7 @@ type TaskService interface {
     // Supervisor operations
     GetMyTeams(supervisorID uint, session string) (*GetMyTeamsResponse, error)
     CreateTask(supervisorID, teamID uint, req CreateTaskRequest) (*CreateTaskResponse, error)
-    GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse, error)
+    GetTeamTasks(supervisorID, teamID uint, session string) (*GetTasksResponse, error)
     DeleteTask(supervisorID, taskID uint) error
     ReviewSubmission(supervisorID, submissionID uint, req ReviewSubmissionRequest) (*ReviewSubmissionResponse, error) // ✅ ADD
 
@@ -187,15 +187,16 @@ func (s *taskService) CreateTask(supervisorID, teamID uint, req CreateTaskReques
 // SUPERVISOR: Get Team Tasks
 // ============================================
 
-func (s *taskService) GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse, error) {
+func (s *taskService) GetTeamTasks(supervisorID, teamID uint, session string) (*GetTasksResponse, error) {
     // Verify team belongs to this supervisor
     var team struct {
         ID           uint
         SupervisorID *uint
+        Session      string // ✅ Get session from team
     }
     
     err := s.db.Table("teams").
-        Select("id, supervisor_id").
+        Select("id, supervisor_id, session").
         Where("id = ?", teamID).
         Scan(&team).Error
     
@@ -205,6 +206,14 @@ func (s *taskService) GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse
     
     if team.SupervisorID == nil || *team.SupervisorID != supervisorID {
         return nil, errors.New("you are not the supervisor of this team")
+    }
+
+    // ✅ If session filter provided, verify it matches team's session
+    if session != "" && team.Session != session {
+        return &GetTasksResponse{
+            Total: 0,
+            Tasks: []TaskItem{},
+        }, nil
     }
     
     // Get tasks
