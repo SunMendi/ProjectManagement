@@ -387,12 +387,29 @@ func (s *supervisorService) UpdateSupervisorProfile(id uint, req UpdateSuperviso
         return err
     }
 
-    supervisor.Name = req.Name
-    supervisor.Designation = req.Designation
-    supervisor.Department = req.Department
-    supervisor.ResearchArea = req.ResearchArea
-    supervisor.Phone = req.Phone
-    supervisor.Image = req.Image
+    if req.Name != "" {
+        supervisor.Name = req.Name
+    }
+    
+    if req.Designation != "" {
+        supervisor.Designation = req.Designation
+    }
+    
+    if req.Department != "" {
+        supervisor.Department = req.Department
+    }
+    
+    if req.ResearchArea != "" {
+        supervisor.ResearchArea = req.ResearchArea
+    }
+    
+    if req.Phone != "" {
+        supervisor.Phone = req.Phone
+    }
+    
+    if req.Image != "" {
+        supervisor.Image = req.Image
+    }
 
     return s.supervisorRepo.UpdateSupervisor(supervisor)
 }
