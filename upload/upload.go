@@ -83,14 +83,13 @@ func UploadFile(c *gin.Context) {
         resourceType = "image"
     }
 
-    // Generate unique filename
+    // ✅ Generate unique publicID - timestamp only, NO filename
     timestamp := time.Now().Unix()
-    publicID := fmt.Sprintf("%d_%s", timestamp, filepath.Base(file.Filename))
+    publicID := fmt.Sprintf("project-management/%d", timestamp)
 
     // Upload to Cloudinary
     ctx := context.Background()
     uploadResult, err := cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
-        Folder:       "project-management",
         ResourceType: resourceType,
         PublicID:     publicID,
     })
