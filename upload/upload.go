@@ -6,7 +6,6 @@ import (
     "net/http"
     "os"
     "path/filepath"
-    "strings"
     "time"
 
     "github.com/cloudinary/cloudinary-go/v2"
@@ -82,11 +81,12 @@ func UploadFile(c *gin.Context) {
     var uploadResult *uploader.UploadResult
 
     if ext == ".pdf" {
-        // ✅ PDFs - upload as "raw" with special handling
+        // ✅ PDFs - upload as IMAGE type to enable inline viewing
         uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
             PublicID:     fmt.Sprintf("%d", timestamp),
             Folder:       "project-management/documents",
-            ResourceType: "raw",
+            ResourceType: "image",
+            Format:       "pdf",
         })
 
     } else if ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".zip" {
@@ -119,21 +119,8 @@ func UploadFile(c *gin.Context) {
         return
     }
 
-    // ✅ Transform URL for PDFs to enable inline viewing
-    finalURL := transformCloudinaryURL(uploadResult.SecureURL, ext)
-
     c.JSON(http.StatusOK, gin.H{
         "message":  "File uploaded successfully",
-        "file_url": finalURL,
+        "file_url": uploadResult.SecureURL,
     })
-}
-
-// ✅ transformCloudinaryURL modifies the URL to enable inline PDF viewing
-func transformCloudinaryURL(url string, ext string) string {
-    if ext == ".pdf" {
-        // Remove fl_attachment flag or add fl_attachment:false
-        // Change: /upload/ to /upload/fl_attachment:false/
-        return strings.Replace(url, "/upload/", "/upload/fl_attachment:false/", 1)
-    }
-    return url
 }
