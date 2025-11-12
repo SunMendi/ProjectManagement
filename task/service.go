@@ -13,7 +13,7 @@ import (
 
 type TaskService interface {
     // Supervisor operations
-    GetMyTeams(supervisorID uint) (*GetMyTeamsResponse, error)
+    GetMyTeams(supervisorID uint, session string) (*GetMyTeamsResponse, error)
     CreateTask(supervisorID, teamID uint, req CreateTaskRequest) (*CreateTaskResponse, error)
     GetTeamTasks(supervisorID, teamID uint) (*GetTasksResponse, error)
     DeleteTask(supervisorID, taskID uint) error
@@ -55,20 +55,28 @@ func NewTaskService(
 // SUPERVISOR: Get My Teams
 // ============================================
 
-func (s *taskService) GetMyTeams(supervisorID uint) (*GetMyTeamsResponse, error) {
+func (s *taskService) GetMyTeams(supervisorID uint, session string) (*GetMyTeamsResponse, error) {
     // Get all teams assigned to this supervisor
-    var teams []struct {
+   var teams []struct {
         ID          uint
         Name        string
         ProjectName string
         Student1ID  uint
         Student2ID  uint
+        Session     string  // ✅ NEW
     }
     
-    err := s.db.Table("teams").
-        Select("teams.id, teams.name, teams.project_name, teams.student1_id, teams.student2_id").
-        Where("teams.supervisor_id = ? AND teams.status = ?", supervisorID, "active").
-        Scan(&teams).Error
+    // ✅ Build query
+    query := s.db.Table("teams").
+        Select("teams.id, teams.name, teams.project_name, teams.student1_id, teams.student2_id, teams.session").
+        Where("teams.supervisor_id = ? AND teams.status = ?", supervisorID, "active")
+    
+    // ✅ Add session filter if provided
+    if session != "" {
+        query = query.Where("teams.session = ?", session)
+    }
+    
+    err := query.Scan(&teams).Error
     
     if err != nil {
         return nil, err

@@ -33,7 +33,9 @@ func (h *TaskHandler) GetMyTeams(c *gin.Context) {
         return
     }
 
-    response, err := h.service.GetMyTeams(supervisorID.(uint))
+    session:= c.Query("session")
+
+    response, err := h.service.GetMyTeams(supervisorID.(uint),session)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return

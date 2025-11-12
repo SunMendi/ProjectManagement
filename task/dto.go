@@ -34,6 +34,7 @@ type MyTeamItem struct {
 
 type GetMyTeamsResponse struct {
     Total int          `json:"total"`
+    Session string      `json:"session,omitempty"`
     Teams []MyTeamItem `json:"teams"`
 }
 
