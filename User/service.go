@@ -145,10 +145,21 @@ func (s *studentService) UpdateStudentProfile(id uint, req UpdateStudentProfileR
     }
 
     // Update fields
-    student.FirstName = req.FirstName
-    student.LastName = req.LastName
-    student.Image = req.Image
-    student.Department = req.Department
+    if req.FirstName != "" {
+        student.FirstName = req.FirstName
+    }
+    
+    if req.LastName != "" {
+        student.LastName = req.LastName
+    }
+    
+    if req.Image != "" {
+        student.Image = req.Image
+    }
+    
+    if req.Department != "" {
+        student.Department = req.Department
+    }
 
     err = s.studentRepo.UpdateStudent(student)
     if err != nil {
