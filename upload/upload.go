@@ -56,7 +56,7 @@ func UploadFile(c *gin.Context) {
     }
     defer fileHeader.Close()
 
-    // Get Cloudinary credentials from environment
+    // Get Cloudinary credentials
     cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
     apiKey := os.Getenv("CLOUDINARY_API_KEY")
     apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
@@ -73,26 +73,35 @@ func UploadFile(c *gin.Context) {
         return
     }
 
-    // Determine resource type based on extension
-    resourceType := "auto"
-    if ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".zip" {
-        resourceType = "raw"
-    } else if ext == ".mp4" {
-        resourceType = "video"
-    } else {
-        resourceType = "image"
-    }
-
-    // ✅ Generate unique publicID - timestamp only, NO filename
+    // Generate unique timestamp
     timestamp := time.Now().Unix()
-    publicID := fmt.Sprintf("project-management/%d", timestamp)
-
-    // Upload to Cloudinary
     ctx := context.Background()
-    uploadResult, err := cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
-        ResourceType: resourceType,
-        PublicID:     publicID,
-    })
+
+    // Upload based on file type
+    var uploadResult *uploader.UploadResult
+
+    if ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".zip" {
+        // Documents - use "raw" resource type
+        uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
+            PublicID:     fmt.Sprintf("%d", timestamp),
+            Folder:       "project-management/documents",
+            ResourceType: "raw",
+        })
+    } else if ext == ".mp4" {
+        // Videos
+        uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
+            PublicID:     fmt.Sprintf("%d", timestamp),
+            Folder:       "project-management/videos",
+            ResourceType: "video",
+        })
+    } else {
+        // Images
+        uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
+            PublicID:     fmt.Sprintf("%d", timestamp),
+            Folder:       "project-management/images",
+            ResourceType: "image",
+        })
+    }
 
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload file: %v", err)})
