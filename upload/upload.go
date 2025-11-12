@@ -6,6 +6,7 @@ import (
     "net/http"
     "os"
     "path/filepath"
+    "strings"
     "time"
 
     "github.com/cloudinary/cloudinary-go/v2"
@@ -79,6 +80,7 @@ func UploadFile(c *gin.Context) {
 
     // Upload based on file type
     var uploadResult *uploader.UploadResult
+    var finalURL string
 
     if ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".zip" {
         // Documents - use "raw" resource type
@@ -87,6 +89,14 @@ func UploadFile(c *gin.Context) {
             Folder:       "project-management/documents",
             ResourceType: "raw",
         })
+
+        if err == nil && ext == ".pdf" {
+            // ✅ For PDFs, add fl_attachment flag to force inline display
+            finalURL = strings.Replace(uploadResult.SecureURL, "/upload/", "/upload/fl_attachment/", 1)
+        } else {
+            finalURL = uploadResult.SecureURL
+        }
+
     } else if ext == ".mp4" {
         // Videos
         uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
@@ -94,6 +104,8 @@ func UploadFile(c *gin.Context) {
             Folder:       "project-management/videos",
             ResourceType: "video",
         })
+        finalURL = uploadResult.SecureURL
+
     } else {
         // Images
         uploadResult, err = cld.Upload.Upload(ctx, fileHeader, uploader.UploadParams{
@@ -101,6 +113,7 @@ func UploadFile(c *gin.Context) {
             Folder:       "project-management/images",
             ResourceType: "image",
         })
+        finalURL = uploadResult.SecureURL
     }
 
     if err != nil {
@@ -110,6 +123,6 @@ func UploadFile(c *gin.Context) {
 
     c.JSON(http.StatusOK, gin.H{
         "message":  "File uploaded successfully",
-        "file_url": uploadResult.SecureURL,
+        "file_url": finalURL,
     })
 }
