@@ -86,8 +86,10 @@ func(r *studentRepository) UpdateStudent(student *Student) error {
 func (r *studentRepository) FindByDepartmentAndSession(department, session string) ([]Student, error) {
     var students []Student
     err := r.db.
+        Model(&Student{}).
+        Joins("JOIN users ON users.id = students.user_id").
+        Where("students.department = ? AND students.session = ? AND users.status = ?", department, session, "active").
         Preload("User").
-        Where("department = ? AND session = ?", department, session).
         Find(&students).Error
     if err != nil {
         return nil, err
