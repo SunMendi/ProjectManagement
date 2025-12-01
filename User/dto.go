@@ -1,5 +1,8 @@
 package user
 
+
+import "time"
+
 type RegisterStudentRequest struct {
     Email              string `json:"email" binding:"required,email"`
     Password           string `json:"password" binding:"required,min=8"`
@@ -156,4 +159,32 @@ type SupervisorLoginResponse struct {
     Role         string                `json:"role"`
     Status       string                `json:"status"`
     Supervisor   GetSupervisorResponse `json:"supervisor"`
+}
+
+// Add at the end of User/dto.go
+
+// ============================================
+// ADMIN DTOs
+// ============================================
+
+type PendingUserItem struct {
+    UserID    uint      `json:"user_id"`
+    Email     string    `json:"email"`
+    Role      string    `json:"role"`
+    Status    string    `json:"status"`
+    CreatedAt time.Time `json:"created_at"`
+    
+    // Student details (if role = student)
+    StudentID          uint   `json:"student_id,omitempty"`
+    FirstName          string `json:"first_name,omitempty"`
+    LastName           string `json:"last_name,omitempty"`
+    Department         string `json:"department,omitempty"`
+    Session            string `json:"session,omitempty"`
+    RegistrationNumber string `json:"registration_number,omitempty"`
+    Batch              string `json:"batch,omitempty"`
+}
+
+type GetPendingUsersResponse struct {
+    Total int               `json:"total"`
+    Users []PendingUserItem `json:"users"`
 }

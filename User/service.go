@@ -528,7 +528,7 @@ func (s *supervisorService) Login(req LoginRequest) (*SupervisorLoginResponse, e
 // ============================================
 
 type AdminService interface {
-    GetPendingUsers() (map[string]interface{}, error)
+    GetPendingUsers() (*GetPendingUsersResponse, error) // ✅ Changed return type
     ApproveUser(userID uint) error
 }
 
@@ -541,21 +541,70 @@ func NewAdminService(db *gorm.DB) AdminService {
 }
 
 // GetPendingUsers - Get all pending students only
-func (s *adminService) GetPendingUsers() (map[string]interface{}, error) {
-    var users []User
-    
-    // Only get pending STUDENTS (supervisor is auto-approved by admin)
-    err := s.db.Where("status = ? AND role = ?", "pending", "student").
-        Order("created_at DESC").
-        Find(&users).Error
-    
+// GetPendingUsers - Get all pending students with their details
+func (s *adminService) GetPendingUsers() (*GetPendingUsersResponse, error) {
+    // ✅ Query: Join users with students table
+    var results []struct {
+        UserID             uint
+        Email              string
+        Role               string
+        Status             string
+        CreatedAt          time.Time
+        StudentID          uint
+        FirstName          string
+        LastName           string
+        Department         string
+        Session            string
+        RegistrationNumber string
+        Batch              string
+    }
+
+    err := s.db.Table("users").
+        Select(`
+            users.id as user_id,
+            users.email,
+            users.role,
+            users.status,
+            users.created_at,
+            students.id as student_id,
+            students.first_name,
+            students.last_name,
+            students.department,
+            students.session,
+            students.registration_number,
+            students.batch
+        `).
+        Joins("LEFT JOIN students ON students.user_id = users.id").
+        Where("users.status = ? AND users.role = ?", "pending", "student").
+        Order("users.created_at DESC").
+        Scan(&results).Error
+
     if err != nil {
         return nil, err
     }
-    
-    return map[string]interface{}{
-        "total": len(users),
-        "users": users,
+
+    // ✅ Build response
+    var userList []PendingUserItem
+    for _, r := range results {
+        userList = append(userList, PendingUserItem{
+            UserID:             r.UserID,
+            Email:              r.Email,
+            Role:               r.Role,
+            Status:             r.Status,
+            CreatedAt:          r.CreatedAt,
+            StudentID:          r.StudentID,
+            FirstName:          r.FirstName,
+            LastName:           r.LastName,
+            Department:         r.Department,
+            Session:            r.Session,
+            RegistrationNumber: r.RegistrationNumber,
+            Batch:              r.Batch,
+        })
+    }
+
+    return &GetPendingUsersResponse{
+        Total: len(userList),
+        Users: userList,
     }, nil
 }
 

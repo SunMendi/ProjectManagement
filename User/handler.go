@@ -220,6 +220,7 @@ func NewAdminHandler(service AdminService) *AdminHandler {
 }
 
 // GetPendingUsers
+// GetPendingUsers
 func (h *AdminHandler) GetPendingUsers(c *gin.Context) {
     result, err := h.service.GetPendingUsers()
     if err != nil {
@@ -227,7 +228,7 @@ func (h *AdminHandler) GetPendingUsers(c *gin.Context) {
         return
     }
     
-    c.JSON(http.StatusOK, result)
+    c.JSON(http.StatusOK, result) // ✅ Now returns structured response
 }
 
 // ApproveUser
