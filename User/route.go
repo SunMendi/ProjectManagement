@@ -27,6 +27,8 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB) {
 
     router.GET("/admin/pending-users", adminHandler.GetPendingUsers)
     router.POST("/admin/users/:user_id/approve", adminHandler.ApproveUser)
+    router.POST("/admin/users/:user_id/reject", adminHandler.RejectUser) // ✅ NEW
+
     router.POST("/api/auth/register/student", studentHandler.RegisterStudent)
     router.POST("/api/auth/login/student", studentHandler.Login)
     router.POST("/api/auth/register/supervisor", supervisorHandler.RegisterSupervisor)

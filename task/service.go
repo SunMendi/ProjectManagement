@@ -18,6 +18,8 @@ type TaskService interface {
     GetTeamTasks(supervisorID, teamID uint, session string) (*GetTasksResponse, error)
     DeleteTask(supervisorID, taskID uint) error
     ReviewSubmission(supervisorID, submissionID uint, req ReviewSubmissionRequest) (*ReviewSubmissionResponse, error) // ✅ ADD
+    GetTeamsWithApprovedSubmissions(supervisorID uint, session string) (*GetTeamsWithApprovedSubmissionsResponse, error) // ✅ NEW
+
 
     
     // Student operations
@@ -527,5 +529,143 @@ func (s *taskService) ReviewSubmission(supervisorID, submissionID uint, req Revi
     
     return &ReviewSubmissionResponse{
         Message: message,
+    }, nil
+}
+
+
+
+// ...existing code...
+
+// ============================================
+// SUPERVISOR: Get Teams with Approved Submissions by Session
+// ============================================
+
+func (s *taskService) GetTeamsWithApprovedSubmissions(supervisorID uint, session string) (*GetTeamsWithApprovedSubmissionsResponse, error) {
+    // Validate session parameter
+    if session == "" {
+        return nil, errors.New("session parameter is required")
+    }
+
+    // Get all teams for this supervisor in this session
+    var teams []struct {
+        ID          uint
+        Name        string
+        ProjectName string
+        Student1ID  uint
+        Student2ID  uint
+    }
+
+    err := s.db.Table("teams").
+        Select("teams.id, teams.name, teams.project_name, teams.student1_id, teams.student2_id").
+        Where("teams.supervisor_id = ? AND teams.session = ? AND teams.status = ?", supervisorID, session, "active").
+        Scan(&teams).Error
+
+    if err != nil {
+        return nil, err
+    }
+
+    var teamList []TeamWithApprovedSubmissions
+
+    for _, team := range teams {
+        // Get student1
+        var student1 struct {
+            Name               string
+            RegistrationNumber string
+        }
+        s.db.Table("students").
+            Select("CONCAT(students.first_name, ' ', students.last_name) as name, students.registration_number").
+            Where("students.id = ?", team.Student1ID).
+            Scan(&student1)
+
+        // Get student2
+        var student2 struct {
+            Name               string
+            RegistrationNumber string
+        }
+        s.db.Table("students").
+            Select("CONCAT(students.first_name, ' ', students.last_name) as name, students.registration_number").
+            Where("students.id = ?", team.Student2ID).
+            Scan(&student2)
+
+        // ✅ Get ONLY APPROVED submissions for this team
+        var approvedSubmissions []struct {
+            SubmissionID   uint
+            TaskTitle      string
+            StudentID      uint
+            SubmissionType string
+            FileURL        string
+            LinkURL        string
+            TextContent    string
+            Feedback       string
+            SubmittedAt    time.Time
+        }
+
+        err := s.db.Table("task_submissions").
+            Select(`
+                task_submissions.id as submission_id,
+                tasks.title as task_title,
+                task_submissions.student_id,
+                task_submissions.submission_type,
+                task_submissions.file_url,
+                task_submissions.link_url,
+                task_submissions.text_content,
+                task_submissions.feedback,
+                task_submissions.submitted_at
+            `).
+            Joins("JOIN tasks ON tasks.id = task_submissions.task_id").
+            Where("tasks.team_id = ? AND task_submissions.status = ?", team.ID, "approved").
+            Order("task_submissions.submitted_at DESC").
+            Scan(&approvedSubmissions).Error
+
+        if err != nil {
+            return nil, err
+        }
+
+        // Build approved submission list
+        var submissionItems []ApprovedSubmissionItem
+        for _, sub := range approvedSubmissions {
+            // Get student name
+            var studentName string
+            s.db.Table("students").
+                Select("CONCAT(first_name, ' ', last_name)").
+                Where("id = ?", sub.StudentID).
+                Scan(&studentName)
+
+            submissionItems = append(submissionItems, ApprovedSubmissionItem{
+                SubmissionID:   sub.SubmissionID,
+                TaskTitle:      sub.TaskTitle,
+                StudentName:    studentName,
+                SubmissionType: sub.SubmissionType,
+                FileURL:        sub.FileURL,
+                LinkURL:        sub.LinkURL,
+                TextContent:    sub.TextContent,
+                Feedback:       sub.Feedback,
+                SubmittedAt:    sub.SubmittedAt,
+            })
+        }
+
+        // Build team with submissions
+        teamItem := TeamWithApprovedSubmissions{
+            TeamID:      team.ID,
+            TeamName:    team.Name,
+            ProjectName: team.ProjectName,
+            Members: []struct {
+                Name               string `json:"name"`
+                RegistrationNumber string `json:"registration_number"`
+            }{
+                {Name: student1.Name, RegistrationNumber: student1.RegistrationNumber},
+                {Name: student2.Name, RegistrationNumber: student2.RegistrationNumber},
+            },
+            ApprovedSubmissions:      submissionItems,
+            TotalApprovedSubmissions: len(submissionItems),
+        }
+
+        teamList = append(teamList, teamItem)
+    }
+
+    return &GetTeamsWithApprovedSubmissionsResponse{
+        Session:    session,
+        TotalTeams: len(teamList),
+        Teams:      teamList,
     }, nil
 }

@@ -235,3 +235,37 @@ func (h *TaskHandler) ReviewSubmission(c *gin.Context) {
 
     c.JSON(http.StatusOK, response)
 }
+
+
+// ...existing code...
+
+// ============================================
+// SUPERVISOR: Get Teams with Approved Submissions by Session
+// ============================================
+
+func (h *TaskHandler) GetTeamsWithApprovedSubmissions(c *gin.Context) {
+    // Get supervisor ID from JWT middleware
+    supervisorID, exists := c.Get("supervisor_id")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+        return
+    }
+
+    // Get session from query parameter (required)
+    session := c.Query("session")
+    if session == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "session parameter is required"})
+        return
+    }
+
+    response, err := h.service.GetTeamsWithApprovedSubmissions(supervisorID.(uint), session)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "success": true,
+        "data":    response,
+    })
+}

@@ -24,6 +24,8 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB) {
     {
         // ========== SUPERVISOR ROUTES ==========
         protected.GET("/supervisor/my-teams", taskHandler.GetMyTeams)
+        protected.GET("/supervisor/teams-with-approved-submissions", taskHandler.GetTeamsWithApprovedSubmissions) // ✅ NEW
+
         protected.POST("/teams/:team_id/tasks", taskHandler.CreateTask)
         protected.GET("/teams/:team_id/tasks", taskHandler.GetTeamTasks)
         protected.DELETE("/tasks/:task_id", taskHandler.DeleteTask)

@@ -530,6 +530,7 @@ func (s *supervisorService) Login(req LoginRequest) (*SupervisorLoginResponse, e
 type AdminService interface {
     GetPendingUsers() (*GetPendingUsersResponse, error) // ✅ Changed return type
     ApproveUser(userID uint) error
+    RejectUser(userID uint) error
 }
 
 type adminService struct {
@@ -622,5 +623,21 @@ func (s *adminService) ApproveUser(userID uint) error {
         return errors.New("user not found or already approved")
     }
     
+    return nil
+}
+
+func (s *adminService) RejectUser(userID uint) error {
+    result := s.db.Model(&User{}).
+        Where("id = ? AND status = ? AND role = ?", userID, "pending", "student").
+        Update("status", "rejected")
+
+    if result.Error != nil {
+        return result.Error
+    }
+
+    if result.RowsAffected == 0 {
+        return errors.New("user not found or already processed")
+    }
+
     return nil
 }

@@ -98,3 +98,40 @@ type ReviewSubmissionRequest struct {
 type ReviewSubmissionResponse struct {
     Message string `json:"message"`
 }
+
+
+// ...existing code...
+
+// ============================================
+// SUPERVISOR: Get Teams with Approved Submissions by Session
+// ============================================
+
+type ApprovedSubmissionItem struct {
+    SubmissionID   uint      `json:"submission_id"`
+    TaskTitle      string    `json:"task_title"`
+    StudentName    string    `json:"student_name"`
+    SubmissionType string    `json:"submission_type"`
+    FileURL        string    `json:"file_url,omitempty"`
+    LinkURL        string    `json:"link_url,omitempty"`
+    TextContent    string    `json:"text_content,omitempty"`
+    Feedback       string    `json:"feedback,omitempty"`
+    SubmittedAt    time.Time `json:"submitted_at"`
+}
+
+type TeamWithApprovedSubmissions struct {
+    TeamID                    uint                     `json:"team_id"`
+    TeamName                  string                   `json:"team_name"`
+    ProjectName               string                   `json:"project_name"`
+    Members                   []struct {
+        Name               string `json:"name"`
+        RegistrationNumber string `json:"registration_number"`
+    }                         `json:"members"`
+    ApprovedSubmissions       []ApprovedSubmissionItem `json:"approved_submissions"`
+    TotalApprovedSubmissions  int                      `json:"total_approved_submissions"`
+}
+
+type GetTeamsWithApprovedSubmissionsResponse struct {
+    Session    string                        `json:"session"`
+    TotalTeams int                           `json:"total_teams"`
+    Teams      []TeamWithApprovedSubmissions `json:"teams"`
+}

@@ -248,3 +248,19 @@ func (h *AdminHandler) ApproveUser(c *gin.Context) {
     
     c.JSON(http.StatusOK, gin.H{"message": "Student approved successfully"})
 }
+
+func (h *AdminHandler) RejectUser(c *gin.Context) {
+    userIDParam := c.Param("user_id")
+    userID, err := strconv.ParseUint(userIDParam, 10, 32)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+        return
+    }
+
+    if err := h.service.RejectUser(uint(userID)); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Student rejected successfully"})
+}
