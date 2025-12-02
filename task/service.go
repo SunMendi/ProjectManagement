@@ -488,33 +488,46 @@ func (s *taskService) SubmitTask(studentID, taskID uint, req SubmitTaskRequest) 
 }
 
 
+// ...existing code...
+
 func (s *taskService) ReviewSubmission(supervisorID, submissionID uint, req ReviewSubmissionRequest) (*ReviewSubmissionResponse, error) {
-    // Get submission
+    // ✅ Get submission with better error handling
     submission, err := s.submissionRepo.FindByID(submissionID)
     if err != nil {
         if err == gorm.ErrRecordNotFound {
-            return nil, errors.New("submission not found")
+            return nil, errors.New("submission not found. This submission may have been deleted")
         }
         return nil, err
     }
     
-    // Get task to verify supervisor
+    // ✅ Get task to verify supervisor
     task, err := s.taskRepo.FindByID(submission.TaskID)
     if err != nil {
-        return nil, errors.New("task not found")
+        if err == gorm.ErrRecordNotFound {
+            return nil, errors.New("associated task not found")
+        }
+        return nil, err
     }
     
-    // Verify supervisor owns this task
+    // ✅ Verify supervisor owns this task
     if task.SupervisorID != supervisorID {
-        return nil, errors.New("unauthorized")
+        return nil, errors.New("you are not authorized to review this submission")
     }
     
-    // Update submission
+    // ✅ Check if already reviewed
+    if submission.Status != "pending" {
+        return nil, errors.New("this submission has already been " + submission.Status)
+    }
+    
+    // ✅ Update submission
     if req.Action == "approve" {
         submission.Status = "approved"
-    } else {
+    } else if req.Action == "reject" {
         submission.Status = "rejected"
+    } else {
+        return nil, errors.New("invalid action. Use 'approve' or 'reject'")
     }
+    
     submission.Feedback = req.Feedback
     
     err = s.submissionRepo.Update(submission)
@@ -532,6 +545,7 @@ func (s *taskService) ReviewSubmission(supervisorID, submissionID uint, req Revi
     }, nil
 }
 
+// ...existing code...
 
 
 // ...existing code...
